@@ -18,9 +18,9 @@ private:
     //queue装function对象,没有返回值的任务队列
     queue<function<void()>>task_q;
     //线程数组
-    list<thread*>working_thread;
-    list<thread*>waiting_thread;
-    //需要两个线程数组 working_thread 和 waiting_thread
+    list<thread*>working_threads;
+    list<thread*>waiting_threads;
+    //需要两个线程数组 working_threads 和 waiting_threads
 
     //线程数量
     int thread_num;
@@ -55,18 +55,19 @@ public:
                     )
                             );
             pro.set_value(new_thread);
-            working_thread.emplace_back(new_thread);
+            working_threads.emplace_back(new_thread);
         }
     }
 
     ~ThreadPool(){//join 所有的线程
         stop_flag= true;//为什么这个flag也需要锁?
-        cv_task.notify_all();
+        waiting_cv.notify_all();
 
-        for(auto ite:working_thread){
+
+        for(auto ite:working_threads){
             ite->join();
         }
-        for(auto ite:waiting_thread){
+        for(auto ite:waiting_threads){
             ite->join();
         }
     }
@@ -78,11 +79,11 @@ public:
             //什么时候扩容线程? 发现队列为满时
 
             //什么时候缩容线程? waiting队列太多时
-            if(waiting_thread.size() > working_thread.size()){
+            if(waiting_threads.size() > working_threads.size()){
                 reduce_flag= true;
                 waiting_cv.notify_all();
                 //开始join
-                for(auto ite:waiting_thread){
+                for(auto ite:waiting_threads){
                     ite->join();
                 }
             } else if(task_q.size()==max_task){
@@ -108,8 +109,8 @@ public:
                 if(task_q.size()==0){//没有任务那么把自己从working挂到waiting里
                     unique_lock<mutex>wk_ul(working_mutex);
                     unique_lock<mutex>wt_ul(waiting_mutex);
-                    working_thread.erase(std::find(working_thread.begin(), working_thread.end(),my_ptr));
-                    waiting_thread.push_back(my_ptr);
+                    working_threads.erase(std::find(working_threads.begin(), working_threads.end(), my_ptr));
+                    waiting_threads.push_back(my_ptr);
                     //等待任务队列不空,或者停止符为真,一旦开始wait,那么就对ul_解锁了
                     cout<<"wait"<<endl;
                     waiting_cv.wait(ul_task, [this](){return reduce_flag||stop_flag || !this->task_q.empty();});
@@ -127,8 +128,8 @@ public:
                     {
                         unique_lock<mutex>wk_ul(working_mutex);
                         unique_lock<mutex>wt_ul(waiting_mutex);
-                        waiting_thread.erase(std::find(working_thread.begin(), working_thread.end(),my_ptr));
-                        working_thread.push_back(my_ptr);
+                        waiting_threads.erase(std::find(working_threads.begin(), working_threads.end(), my_ptr));
+                        working_threads.push_back(my_ptr);
                     }
                 }//这里丢掉两个队列的锁
 
@@ -235,9 +236,11 @@ int main(){
     for(int i = 0;i<20;i++){
         tp.Submit(multiply_no_return,i,1);
     }
-    sleep(2);
+
+    sleep(5);
+
     for(int i = 0;i<20;i++){
-        tp.Submit(multiply_no_return,i,1);
+        tp.Submit(multiply_no_return,i,1);//这里会死锁,submit交不上去
     }
 }
 
