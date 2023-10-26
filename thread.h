@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+
 #include <functional>//bind
 #include <unistd.h>//sleep
 #include <memory>//make_shared
@@ -207,6 +209,7 @@ public:
                     }
                 }
                 max_task*=2;
+                thread_num*=2;
                 cout<<"============expand============"<<endl;
             }
             task_q.push(wrap_func);

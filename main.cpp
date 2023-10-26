@@ -37,8 +37,8 @@ public:
 
 //简单乘法任务
 void multiply_no_return(int a,int b){
-    sleep(1);
-    cout<<a*b<<endl;
+//    sleep(1);
+    a*b;
 }
 
 int multiply_with_return(int a,int b){
@@ -47,6 +47,19 @@ int multiply_with_return(int a,int b){
 }
 
 int main(){
+    ofstream fout;
+    fout.open("thread_out.txt",ios::out);
+    if (!fout.is_open()) {
+        std::cerr << "Error opening file 'thread_out.txt'" << std::endl;
+        return 1; // 退出程序，返回错误码
+    }
+    if (!fout.good()) {
+        std::cerr << "Error with file stream." << std::endl;
+        return 1; // 退出程序，返回错误码
+    }
+    cout.rdbuf(fout.rdbuf());
+    cout<<"hello"<<endl;
+
     ThreadPool tp(10);
 
     ptrClass a;
@@ -59,15 +72,15 @@ int main(){
     tp.Submit(multiply_no_return,1,1);
 
 
-    for(int i = 0;i<50;i++){
+    for(int i = 0;i<10000;i++){
         tp.Submit(multiply_no_return,i,1);
     }
 
-    sleep(1);
-
-    for(int i = 0;i<50;i++){
-        tp.Submit(multiply_no_return,i,1);
-    }
+//    sleep(1);
+//
+//    for(int i = 0;i<10000;i++){
+//        tp.Submit(multiply_no_return,i,1);
+//    }
     sleep(10);
     cout<<"destory threadpool"<<endl;
 }
