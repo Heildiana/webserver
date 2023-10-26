@@ -10,6 +10,7 @@
 #include <thread>
 #include <string.h>//memcpy()
 #include <list>
+#include <time.h>
 
 using namespace std;
 
@@ -20,6 +21,7 @@ private:
     //线程数组
     list<thread*>working_threads;
     list<thread*>waiting_threads;
+    thread* daemon;
     //需要两个线程数组 working_threads 和 waiting_threads
 
     //线程数量
@@ -41,7 +43,7 @@ private:
 
 public:
     //构造线程池,初始化线程数组
-    ThreadPool(int thread_num): thread_num(thread_num),stop_flag(false),reduce_flag(false){
+    ThreadPool(int thread_num): thread_num(thread_num),stop_flag(false),reduce_flag(false),max_task(thread_num*2){
 
         //需要给出一个常驻回收线程 1 回收 2 打印当前线程数量 daemon线程
 
@@ -57,6 +59,7 @@ public:
             pro.set_value(new_thread);
             working_threads.emplace_back(new_thread);
         }
+        daemon = new thread([this](){ this->daemon_thread_work();});
     }
 
     ~ThreadPool(){//join 所有的线程
@@ -66,46 +69,51 @@ public:
 //            cout<<"stop:"<<stop_flag<<endl;
         }
         //设置为true后,当task队列空时,线程返回
+        daemon->join();
+    }
+
+    //daemon线程动作
+    void daemon_thread_work(){
+        while (!stop_flag){
+            //什么时候扩容线程? 发现队列为满时=====这个交给submit函数做了
+
+            //什么时候缩容线程? waiting队列太多时
+            sleep(2);
+            {
+                unique_lock<mutex>thread_ul(threads_mutex);
+                cout<<"==============thread num: "<<waiting_threads.size()+working_threads.size()<<endl;
+                if(waiting_threads.size() > working_threads.size()){
+                    reduce_flag= true;
+                    waiting_cv.notify_all();
+                    //开始join
+                    for(auto ite:waiting_threads){
+                        ite->join();
+                        waiting_threads.erase(std::find(waiting_threads.begin(), waiting_threads.end(),ite));
+                        delete ite;
+                    }
+                } //如果没有很多空闲进程,那么马上丢锁
+            }
+        }
+        //stop flag 为真 需要join所有线程
         {
-//            unique_lock<mutex>wk_ul(working_mutex);
-            unique_lock<mutex>wt_ul(threads_mutex);
+            unique_lock<mutex>wt_ul(threads_mutex);//对两个队列加锁
             waiting_cv.notify_all();
 
             //程序依赖本行注释运行,没有这行注释会偶尔死锁
 
             for(auto ite:working_threads){
                 ite->join();
+                delete ite;
             }
             cout<<"joing working"<<endl;
 
-            waiting_cv.notify_all();
             for(auto ite:waiting_threads){
                 ite->join();
+                delete ite;
             }
             cout<<"joing waiting"<<endl;
-
         }
-    }
-
-    //daemon线程动作
-    void daemon_thread_work(){
-        while (!stop_flag){
-            //循环探查waiting队列的每个线程,试图回收 ,if reduce为真的话
-
-            //什么时候扩容线程? 发现队列为满时
-
-            //什么时候缩容线程? waiting队列太多时
-            if(waiting_threads.size() > working_threads.size()){
-                reduce_flag= true;
-                waiting_cv.notify_all();
-                //开始join
-                for(auto ite:waiting_threads){
-                    ite->join();
-                }
-            } else if(task_q.size()==max_task){
-                //扩容
-            }
-        }
+        return;
     }
 
     //线程动作
@@ -126,7 +134,7 @@ public:
 //                cout<<"task_q size:"<<task_q.size()<<endl;
                 if(task_q.size()==0){//没有任务那么把自己从working挂到waiting里
 //                    cout<<"working to waiting"<<endl;
-                    if(stop_flag||reduce_flag) return;//working线程出口
+                    if(stop_flag) return;//working线程出口
                     //如果缩容flag亮了那么就return
                     //那么缩容flag什么时候恢复呢?当缩容计数器=0的时候就恢复,在daemon那边恢复的
 
@@ -161,11 +169,6 @@ public:
         }
     }
 
-
-
-
-
-
     //submit函数
     template<typename F,typename ...Args>
     auto Submit(F &&f, Args&& ...args)->future<decltype(f(args...))>{
@@ -184,35 +187,33 @@ public:
             (*task_ptr)();
         };
         //任务队列中任务+1
-        //if 队列满,那么扩容
         {
-            unique_lock<mutex>ul(task_mutex);
+            unique_lock<mutex>ul(task_mutex);//同时只会有一个submit
+            if(task_q.size()>=max_task){
+                //if 队列满,那么扩容
+                {//拿线程队列的锁
+                    unique_lock<mutex>thread_ul(threads_mutex);
+                    for(int i = 0; i < thread_num; i++){
+                        promise<thread*>pro;
+                        future<thread*>fu = pro.get_future();
+                        //future 应该是不能被拷贝构造,只能传引用
+                        //future 怎么传到lambda表达式里面
+                        thread* new_thread = new thread(bind(
+                                                                [this](future<thread*>&fu){this->thread_work(fu);},move(fu)
+                                                        )
+                        );
+                        pro.set_value(new_thread);
+                        working_threads.emplace_back(new_thread);
+                    }
+                }
+                max_task*=2;
+                cout<<"============expand============"<<endl;
+            }
             task_q.push(wrap_func);
         }
         //notify
         waiting_cv.notify_one();
+
         return task_ptr->get_future();
     }
 };
-
-
-
-#if 0
-int main() {//测试
-    function<int()>func = bind(multiply_with_return,1,2);//核心步骤
-    cout<<func()<<endl;
-
-    //获得future
-    auto task_ptr = make_shared<packaged_task<int()>>(func);
-
-    //包装成void()入队
-    queue<function<void()>>func_q;//创建队列
-    function<void()>wrap_task =  [task_ptr](){
-        (*task_ptr)();//task_ptr它自己无法执行,但是它指向的东西可以执行
-        //package类内部重载了()运算符,是个可调用对象,调用构造时穿进去的函数
-    };
-    wrap_task();//执行队列里的函数,实际情况下,这个由另一个线程完成
-
-    cout<<task_ptr->get_future().get()<<endl;//主线程通过future获取返回值
-}
-#endif

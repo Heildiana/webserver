@@ -56,8 +56,6 @@ int main(){
 
 //    tp.Submit(&ptrClass::printBuffer,&a);
     //为什么不能直接把成员函数给进去呢?
-
-
     tp.Submit(multiply_no_return,1,1);
 
 
@@ -70,6 +68,6 @@ int main(){
     for(int i = 0;i<50;i++){
         tp.Submit(multiply_no_return,i,1);
     }
-    sleep(2);
+    sleep(10);
     cout<<"destory threadpool"<<endl;
 }
