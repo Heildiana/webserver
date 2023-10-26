@@ -28,11 +28,11 @@ private:
     bool stop_flag;
     bool reduce_flag;//缩容flag
     //条件变量和锁
-    mutex mutex_task;
-    mutex waiting_mutex;
-    mutex working_mutex;
+    mutex task_mutex;
+    mutex threads_mutex;//一个锁锁两个队列
+//    mutex working_mutex;
 
-    condition_variable cv_task;
+    condition_variable task_cv;
     condition_variable waiting_cv;
 
     //需要限制任务池的最大容量吗?
@@ -60,21 +60,33 @@ public:
     }
 
     ~ThreadPool(){//join 所有的线程
-        stop_flag= true;//为什么这个flag也需要锁?
-
-        waiting_cv.notify_all();
-
         {
-            unique_lock<mutex>wk_ul(working_mutex);
-            unique_lock<mutex>wt_ul(waiting_mutex);
+            unique_lock<mutex>task_ul(task_mutex);
+            stop_flag= true;//为什么这个flag也需要锁?
+//            cout<<"stop:"<<stop_flag<<endl;
+        }
+        //设置为true后,当task队列空时,线程返回
+        {
+//            unique_lock<mutex>wk_ul(working_mutex);
+            unique_lock<mutex>wt_ul(threads_mutex);
+            waiting_cv.notify_all();
+
+            //程序依赖本行注释运行,没有这行注释会偶尔死锁
+
             for(auto ite:working_threads){
                 ite->join();
             }
+            cout<<"joing working"<<endl;
+
+            waiting_cv.notify_all();
             for(auto ite:waiting_threads){
                 ite->join();
             }
+            cout<<"joing waiting"<<endl;
+
         }
     }
+
     //daemon线程动作
     void daemon_thread_work(){
         while (!stop_flag){
@@ -109,37 +121,34 @@ public:
             function<void()>task;
             //阻塞,等待queue中的任务,临界资源是队列,访问任务队列的代码段需要加锁
             {
-                unique_lock<mutex>ul_task(mutex_task);//对任务队列上锁
+                unique_lock<mutex>task_ul(task_mutex);//对任务队列上锁
+//                cout<<"th stop:"<<stop_flag<<endl;
+//                cout<<"task_q size:"<<task_q.size()<<endl;
                 if(task_q.size()==0){//没有任务那么把自己从working挂到waiting里
-                    {
-                        unique_lock<mutex>wk_ul(working_mutex);
-                        unique_lock<mutex>wt_ul(waiting_mutex);
+//                    cout<<"working to waiting"<<endl;
+                    if(stop_flag||reduce_flag) return;//working线程出口
+                    //如果缩容flag亮了那么就return
+                    //那么缩容flag什么时候恢复呢?当缩容计数器=0的时候就恢复,在daemon那边恢复的
+
+                    {//这里容易死锁,当析构函数析构拿锁时,其他线程会卡着
+                        unique_lock<mutex>wt_ul(threads_mutex);
                         working_threads.erase(std::find(working_threads.begin(), working_threads.end(), my_ptr));
                         waiting_threads.push_back(my_ptr);
                     }
                     //等待任务队列不空,或者停止符为真,一旦开始wait,那么就对ul_解锁了
 //                    cout<<"wait"<<endl;
+                    waiting_cv.wait(task_ul, [this](){return reduce_flag || stop_flag || !this->task_q.empty();});
                     //丢任务锁
-                    waiting_cv.wait(ul_task, [this](){return reduce_flag||stop_flag || !this->task_q.empty();});
-
-                    //如果停止符为真且队列也完了,那么就return;
-                    if(stop_flag&&task_q.empty()){
-                        return;
-                    }
-                    if(reduce_flag){
-                        return;
-                    }
-                    //如果缩容flag亮了那么就return
-                    //那么缩容flag什么时候恢复呢?当缩容计数器=0的时候就恢复,在daemon那边恢复的
+                    if(stop_flag||reduce_flag) return;//waiting线程出口
 
                     //正常情况就接任务,并且把自己挂到working队列里
                     {
-                        unique_lock<mutex>wk_ul(working_mutex);
-                        unique_lock<mutex>wt_ul(waiting_mutex);
+                        unique_lock<mutex>wt_ul(threads_mutex);
                         waiting_threads.erase(std::find(waiting_threads.begin(), waiting_threads.end(), my_ptr));
                         working_threads.push_back(my_ptr);
-                    }
-                }//这里丢掉两个队列的锁
+//                        cout<<"waiting to working"<<endl;
+                    }//这里丢掉两个队列的锁
+                }
 
                 task = move(task_q.front());
                 task_q.pop();
@@ -160,7 +169,7 @@ public:
     //submit函数
     template<typename F,typename ...Args>
     auto Submit(F &&f, Args&& ...args)->future<decltype(f(args...))>{
-        cout<<"submit"<<endl;
+//        cout<<"submit"<<endl;
         using return_type = decltype(f(args...));
 
         //核心步骤,return_type ()是函数类型 返回值(参数列表)
@@ -177,7 +186,7 @@ public:
         //任务队列中任务+1
         //if 队列满,那么扩容
         {
-            unique_lock<mutex>ul(mutex_task);
+            unique_lock<mutex>ul(task_mutex);
             task_q.push(wrap_func);
         }
         //notify

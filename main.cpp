@@ -48,21 +48,28 @@ int multiply_with_return(int a,int b){
 
 int main(){
     ThreadPool tp(10);
-//    ptrClass a;
-//    a.printBuffer();
-    //将a对象和print成员函数绑定
 
-//    tp.Submit(bind(&ptrClass::printBuffer,&a));
+    ptrClass a;
+    tp.Submit(bind(&ptrClass::printBuffer,&a));//将a对象和print成员函数绑定
+
+//    a.printBuffer();
+
 //    tp.Submit(&ptrClass::printBuffer,&a);
     //为什么不能直接把成员函数给进去呢?
 
-    for(int i = 0;i<20;i++){
+
+    tp.Submit(multiply_no_return,1,1);
+
+
+    for(int i = 0;i<50;i++){
         tp.Submit(multiply_no_return,i,1);
     }
 
-    sleep(3);
+    sleep(1);
 
-    for(int i = 0;i<20;i++){
-        tp.Submit(multiply_no_return,i,1);//这里会死锁,submit交不上去
+    for(int i = 0;i<50;i++){
+        tp.Submit(multiply_no_return,i,1);
     }
+    sleep(2);
+    cout<<"destory threadpool"<<endl;
 }
