@@ -71,8 +71,9 @@ int main(){
     //为什么不能直接把成员函数给进去呢?
     tp.Submit(multiply_no_return,1,1);
 
-
-    for(int i = 0;i<10000;i++){
+    int times = 100000;
+    cout<<times<<endl;
+    for(int i = 0;i<times;i++){
         tp.Submit(multiply_no_return,i,1);
     }
 
