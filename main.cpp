@@ -60,7 +60,7 @@ int main(){
         tp.Submit(multiply_no_return,i,1);
     }
 
-    sleep(10);
+    sleep(3);
 
     for(int i = 0;i<20;i++){
         tp.Submit(multiply_no_return,i,1);//这里会死锁,submit交不上去

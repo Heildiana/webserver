@@ -61,14 +61,18 @@ public:
 
     ~ThreadPool(){//join 所有的线程
         stop_flag= true;//为什么这个flag也需要锁?
+
         waiting_cv.notify_all();
 
-
-        for(auto ite:working_threads){
-            ite->join();
-        }
-        for(auto ite:waiting_threads){
-            ite->join();
+        {
+            unique_lock<mutex>wk_ul(working_mutex);
+            unique_lock<mutex>wt_ul(waiting_mutex);
+            for(auto ite:working_threads){
+                ite->join();
+            }
+            for(auto ite:waiting_threads){
+                ite->join();
+            }
         }
     }
     //daemon线程动作
@@ -100,7 +104,7 @@ public:
     void thread_work(future<thread*>& fu){
         thread* my_ptr = fu.get();
 //        cout<<my_ptr<<endl;
-        sleep(2);
+//        sleep(2);
         while (1){
             function<void()>task;
             //阻塞,等待queue中的任务,临界资源是队列,访问任务队列的代码段需要加锁
