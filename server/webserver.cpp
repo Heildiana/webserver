@@ -16,7 +16,11 @@ thread_pool(new ThreadPool(thread_num))
     if(!initListenSocket()){
         close_flag=true;
     }
-}//初始化
+}
+Webserver::~Webserver()
+{
+}
+// 初始化
 
 bool Webserver::initListenSocket(){
     int ret;//用于后续一系列判断的临时量
@@ -43,7 +47,8 @@ bool Webserver::initListenSocket(){
     }
     listen_addr.sin_family = AF_INET;
     listen_addr.sin_addr.s_addr = INADDR_ANY;
-    listen_addr.sin_port = htonl(port_);
+    listen_addr.sin_port = ntohs(port_);
+    std::cout<<"bind"<<std::endl;
     if(bind(listen_fd,(sockaddr*)&listen_addr,sizeof(listen_addr))<0){
         std::cerr<<"bind error"<<std::endl;
     }
@@ -54,8 +59,10 @@ bool Webserver::initListenSocket(){
     //加到epoll里面,listenfd 非阻塞
     setFdNonBlock(listen_fd);
     epoll_->addFd(listen_fd,listen_event|EPOLLIN);//注册listen fd
+    std::cout<<"add ls fd"<<std::endl;
     return true;
 }
+
 
 int Webserver::setFdNonBlock(int fd)
 {
@@ -70,6 +77,7 @@ void Webserver::handleListen()
     //这里试试能不能自己造个轮子,搞个dll库
     sockaddr_in cli_addr;
     socklen_t len = sizeof(cli_addr);
+    std::cout<<"handle listen"<<std::endl;
     int cli_fd = accept(listen_fd,(sockaddr*)&cli_addr,&len);//这里是非阻塞的,要防止一次没读完的问题
     http_connections[cli_fd].initHttpConnc(cli_fd,cli_addr);//这行是方便往回写的,自动调用默认构造函数
     epoll_->addFd(cli_fd,connect_event|EPOLLIN);//这行是核心代码
@@ -87,7 +95,7 @@ void Webserver::handleClose(HttpConnection *client)
 void Webserver::handleRead(HttpConnection *client)
 {
     assert(client);
-    thread_pool->Submit(std::bind(&Webserver::onRead,this,client));
+    thread_pool->submit(std::bind(&Webserver::onRead,this,client));
 }
 
 void Webserver::onRead(HttpConnection *client)
@@ -99,7 +107,7 @@ void Webserver::onRead(HttpConnection *client)
     {
         printf("%s",buffer);
     }
-    // int len = recv(client->getFd(),)
+    return;
 }
 
 void Webserver::mainFrame(){
@@ -114,7 +122,9 @@ void Webserver::mainFrame(){
     }
     while (!close_flag)
     {
+        std::cout<<"epoll wait"<<std::endl;
         int events_num = epoll_->wait();//这里阻塞,等待返回触发的事件数
+        std::cout<<"epoll wait return"<<std::endl;
         for(int i = 0;i<events_num;i++){
             //分别取得当前触发事件的fd和event
             int cur_fd = epoll_->getFd(i);
@@ -122,6 +132,7 @@ void Webserver::mainFrame(){
             //根据fd,event的类型来决定要干嘛
             if(cur_fd==listen_fd){
                 //接入客户端,生成一个新的HttpConnect对象,放在user数组里
+                std::cout<<"handle listen"<<std::endl;
                 handleListen();
             }else if(cur_event&(EPOLLRDHUP|EPOLLHUP|EPOLLERR)){
                 //err or disconnect

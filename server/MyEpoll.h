@@ -23,9 +23,7 @@ public:
     bool delFd(int fd);
     u_int32_t getEvent(int i);//得到触发数组里第i个事件的event
 
-    
-
-    int wait();
+    int wait();//封装的wait函数,返回触发的event数
 };
 
 #endif

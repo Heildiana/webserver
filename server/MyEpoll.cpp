@@ -38,3 +38,8 @@ u_int32_t MyEpoll::getEvent(int i)
     assert(i>=0&&i<epoll_events.size());
     return epoll_events[i].events;
 }
+
+int MyEpoll::wait()
+{
+    return epoll_wait(epoll_fd,&epoll_events[0],static_cast<int>(epoll_events.size()),-1);
+}
