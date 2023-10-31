@@ -23,7 +23,10 @@ private:
     int listen_fd;
     int port_;//对外暴露的端口
     int thread_num;//线程池的线程数量
-    std::string res_dir;
+    std::string res_dir;//发给客户端的资源目录
+
+    u_int32_t listen_event = EPOLLRDHUP|EPOLLET;//需要监听的事件
+    u_int32_t connect_event = EPOLLRDHUP|EPOLLET|EPOLLONESHOT;
 
     bool close_flag;//是否停止
 

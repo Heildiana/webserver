@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-
 #include <functional>//bind
 #include <unistd.h>//sleep
 #include <memory>//make_shared

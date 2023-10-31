@@ -53,7 +53,7 @@ bool Webserver::initListenSocket(){
     //accept
     //加到epoll里面,listenfd 非阻塞
     setFdNonBlock(listen_fd);
-    epoll_->addFd(listen_fd,EPOLLIN);
+    epoll_->addFd(listen_fd,listen_event|EPOLLIN);//注册listen fd
     return true;
 }
 
@@ -71,8 +71,8 @@ void Webserver::handleListen()
     sockaddr_in cli_addr;
     socklen_t len = sizeof(cli_addr);
     int cli_fd = accept(listen_fd,(sockaddr*)&cli_addr,&len);//这里是非阻塞的,要防止一次没读完的问题
-    http_connections[cli_fd].initHttpConnc(cli_fd,cli_addr);//这行是方便往回写的
-    epoll_->addFd(cli_fd,EPOLLIN);//这行是核心代码
+    http_connections[cli_fd].initHttpConnc(cli_fd,cli_addr);//这行是方便往回写的,自动调用默认构造函数
+    epoll_->addFd(cli_fd,connect_event|EPOLLIN);//这行是核心代码
     setFdNonBlock(cli_fd);
 }
 
