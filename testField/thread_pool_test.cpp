@@ -44,6 +44,7 @@ int multiply_with_return(int a,int b){
 }
 
 int main(){
+    //重定向
     ofstream fout;
     fout.open("thread_out.txt",ios::out);
     if (!fout.is_open()) {
@@ -55,30 +56,32 @@ int main(){
         return 1; // 退出程序，返回错误码
     }
     cout.rdbuf(fout.rdbuf());
-    cout<<"hello"<<endl;
 
+    cout<<"test_start!"<<endl;
     ThreadPool tp(10);
 
-    ptrClass a;
-    tp.Submit(bind(&ptrClass::printBuffer,&a));//将a对象和print成员函数绑定
+    // ptrClass a;
+    // tp.Submit(bind(&ptrClass::printBuffer,&a));//将a对象和print成员函数绑定
 
-//    a.printBuffer();
+// //    a.printBuffer();
 
-//    tp.Submit(&ptrClass::printBuffer,&a);
-    //为什么不能直接把成员函数给进去呢?
-    tp.Submit(multiply_no_return,1,1);
+// //    tp.Submit(&ptrClass::printBuffer,&a);
+//     //为什么不能直接把成员函数给进去呢?
+//     tp.Submit(multiply_no_return,1,1);
 
-    int times = 100;
-    cout<<times<<endl;
+    int times = 1000000;
+    cout<<"times:"<<times<<endl;
     for(int i = 0;i<times;i++){
         tp.Submit(multiply_no_return,i,1);
+        // cout<<"submit: "<<i<<endl;
     }
 
-//    sleep(1);
-//
-//    for(int i = 0;i<10000;i++){
-//        tp.Submit(multiply_no_return,i,1);
-//    }
-    sleep(10);
+    sleep(1);
+    cout<<"next batch"<<endl;
+    for(int i = 0;i<times;i++){
+        tp.Submit(multiply_no_return,i,1);
+        // cout<<"submit: "<<i<<endl;
+    }
+    sleep(1);
     cout<<"destory threadpool"<<endl;
 }

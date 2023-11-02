@@ -23,7 +23,7 @@ private:
     //线程数组
     list<thread*>working_threads;
     list<thread*>waiting_threads;
-    thread* daemon;
+    thread* daemon_;
     //需要两个线程数组 working_threads 和 waiting_threads
 
     //线程数量
@@ -36,7 +36,7 @@ private:
     mutex threads_mutex;//一个锁锁两个队列
 //    mutex working_mutex;
 
-    condition_variable task_cv;
+    condition_variable submit_cv;
     condition_variable waiting_cv;
 
     //需要限制任务池的最大容量吗?
@@ -61,7 +61,7 @@ public:
             pro.set_value(new_thread);
             working_threads.emplace_back(new_thread);
         }
-        daemon = new thread([this](){ this->daemon_thread_work();});
+        daemon_ = new thread([this](){ this->daemon_thread_work();});
     }
 
     ~ThreadPool(){//join 所有的线程
@@ -71,7 +71,7 @@ public:
 //            cout<<"stop:"<<stop_flag<<endl;
         }
         //设置为true后,当task队列空时,线程返回
-        daemon->join();
+        daemon_->join();
     }
 
     //daemon线程动作
