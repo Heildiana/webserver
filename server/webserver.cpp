@@ -94,18 +94,25 @@ void Webserver::handleClose(HttpConnection *client)
 
 void Webserver::handleRead(HttpConnection *client)
 {
+    std::cout<<"handle_read"<<std::endl;
     assert(client);
-    thread_pool->submit(std::bind(&Webserver::onRead,this,client));
+    thread_pool->Submit(std::bind(&Webserver::onRead,this,client));
 }
 
 void Webserver::onRead(HttpConnection *client)
 {
     assert(client);
+    //这里需要把fd的内容读到httpconnect的成员里
+
     char buffer[128]={0};
     int len = 0;
-    while (len = recv(client->getFd(),buffer,128,0))    
+    std::cout<<"on_read"<<std::endl;
+
+    while (1)    
     {
-        printf("%s",buffer);
+        len = recv(client->getFd(),buffer,128,0);
+        if(len<0) break;
+        std::cout<<buffer<<std::endl;//et和oneshot起作用了的,这里不断有东西读可能是浏览器在一直发请求体
     }
     return;
 }
