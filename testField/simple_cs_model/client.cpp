@@ -18,18 +18,17 @@ int main(){
 
     //尝试内存映射
     int fd = open("get.txt",O_RDONLY);
-    char buff[128];
+    char buff[1024];
     memset(buff,0,sizeof(buff));
-    read(fd,buff,128);
+    read(fd,buff,sizeof(buff));
+    perror("read");
 
 
-    std::cout<<"write"<<std::endl;
+    std::cout<<"==================write content=============="<<std::endl;
     std::cout<<buff<<std::endl;
     int ret = write(client_fd,buff,strlen(buff));
-    if(ret<0){
-        perror("write");
-    }
-    std::cout<<"write"<<std::endl;
+    perror("==========write");
+    
     // sleep(1);
     while (1)
     {

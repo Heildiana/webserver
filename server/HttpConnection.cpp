@@ -19,3 +19,13 @@ int HttpConnection::getFd()
 {
     return cli_fd;
 }
+
+void HttpConnection::readFd()
+{
+    read_buffer.readFd(getFd());
+}
+
+void HttpConnection::printBuffer()
+{
+    read_buffer.printContent();
+}

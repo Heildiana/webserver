@@ -16,6 +16,7 @@ thread_pool(new ThreadPool(thread_num))
     if(!initListenSocket()){
         close_flag=true;
     }
+    std::cout<<"webserver ctor"<<std::endl;
 }
 Webserver::~Webserver()
 {
@@ -59,7 +60,7 @@ bool Webserver::initListenSocket(){
     //加到epoll里面,listenfd 非阻塞
     setFdNonBlock(listen_fd);
     epoll_->addFd(listen_fd,listen_event|EPOLLIN);//注册listen fd
-    std::cout<<"add ls fd"<<std::endl;
+    std::cout<<"add listen fd"<<std::endl;
     return true;
 }
 
@@ -103,17 +104,18 @@ void Webserver::onRead(HttpConnection *client)
 {
     assert(client);
     //这里需要把fd的内容读到httpconnect的成员里
+    client->readFd();
+    // char buffer[128]={0};
+    // int len = 0;
+    // std::cout<<"on_read"<<std::endl;
 
-    char buffer[128]={0};
-    int len = 0;
-    std::cout<<"on_read"<<std::endl;
-
-    while (1)    
-    {
-        len = recv(client->getFd(),buffer,128,0);
-        if(len<0) break;
-        std::cout<<buffer<<std::endl;//et和oneshot起作用了的,这里不断有东西读可能是浏览器在一直发请求体
-    }
+    // while (1)    
+    // {
+    //     len = recv(client->getFd(),buffer,128,0);
+    //     if(len<0) break;
+    //     std::cout<<buffer<<std::endl;//et和oneshot起作用了的,这里不断有东西读可能是浏览器在一直发请求体
+    // }
+    client->printBuffer();
     return;
 }
 
