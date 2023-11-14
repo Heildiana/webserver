@@ -3,7 +3,9 @@
 #include <sys/epoll.h>//epoll
 #include <vector>
 #include <unordered_map>
+#include <iostream>
 #include "assert.h"
+
 
 
 typedef struct epoll_event epoll_event;
@@ -21,6 +23,7 @@ public:
     bool addFd(int fd,uint32_t events);
     int getFd(int i);//得到触发数组里第i个fd
     bool delFd(int fd);
+    bool modFd(int fd,uint32_t event);
     u_int32_t getEvent(int i);//得到触发数组里第i个事件的event
 
     int wait();//封装的wait函数,返回触发的event数

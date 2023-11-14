@@ -1,6 +1,7 @@
 #ifndef WEBSERVER
 #define WEBSERVER
 
+//std .h file
 #include <iostream>
 #include <memory>
 #include <arpa/inet.h>//socket
@@ -10,7 +11,7 @@
 #include <fcntl.h>//fcntl()
 #include <unordered_map>
 
-//my .h
+//my .h file
 #include "MyEpoll.h"
 #include "HttpConnection.h"
 #include "ThreadPool1.h"
@@ -48,10 +49,11 @@ public:
     //事件函数
     void handleListen();
 
-    void handleClose(HttpConnection* client);
+    void handleClose(HttpConnection* cur_client);
 
-    void handleRead(HttpConnection* client);
-    void onRead(HttpConnection* client);
+    void handleRead(HttpConnection* cur_client);
+    void onRead(HttpConnection* cur_client);
+    void onProcess(HttpConnection* cur_client);
 
 };
 

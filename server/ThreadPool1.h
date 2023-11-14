@@ -1,3 +1,5 @@
+//单链表的版本
+
 #include <iostream>
 #include <fstream>
 #include <functional>//bind

@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include "MyBuffer.h"
+#include "HttpRequest.h"
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
@@ -12,6 +13,8 @@ private:
 
     MyBuffer read_buffer;//从客户端获取的请求报文在这里
     MyBuffer write_buffer;
+    HttpRequest cur_request;
+    
     
 public:
     HttpConnection(/* args */);
@@ -20,6 +23,10 @@ public:
     int getFd();
     void readFd();
     void printBuffer();
+    MyBuffer& getBuffer();
+
+    //完成请求的解析,并且把要发送的网页准备好
+    bool handleHttpConnection();
 };
 
 

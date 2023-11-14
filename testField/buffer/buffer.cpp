@@ -32,6 +32,7 @@ int main(int argc, char const *argv[])
     for(auto chr:buff_v){
         std::cout<<chr;
     }
+    buff_v[1]=='/n';
     std::cout<<std::endl;
     
     return 0;

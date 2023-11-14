@@ -85,38 +85,46 @@ void Webserver::handleListen()
     setFdNonBlock(cli_fd);
 }
 
-void Webserver::handleClose(HttpConnection *client)
+void Webserver::handleClose(HttpConnection *cur_client)
 {
     //删除
-    assert(client);
-    epoll_->delFd(client->getFd());
-    // client->closeConnect();
+    assert(cur_client);
+    epoll_->delFd(cur_client->getFd());
+    // cur_client->closeConnect();
 }
 
-void Webserver::handleRead(HttpConnection *client)
+void Webserver::handleRead(HttpConnection *cur_client)
 {
     std::cout<<"handle_read"<<std::endl;
-    assert(client);
-    thread_pool->Submit(std::bind(&Webserver::onRead,this,client));
+    assert(cur_client);
+    thread_pool->Submit(std::bind(&Webserver::onRead,this,cur_client));
 }
 
-void Webserver::onRead(HttpConnection *client)
+void Webserver::onRead(HttpConnection *cur_client)
 {
-    assert(client);
+    assert(cur_client);
     //这里需要把fd的内容读到httpconnect的成员里
-    client->readFd();
-    // char buffer[128]={0};
-    // int len = 0;
-    // std::cout<<"on_read"<<std::endl;
-
-    // while (1)    
-    // {
-    //     len = recv(client->getFd(),buffer,128,0);
-    //     if(len<0) break;
-    //     std::cout<<buffer<<std::endl;//et和oneshot起作用了的,这里不断有东西读可能是浏览器在一直发请求体
+    cur_client->readFd();//请求报文以及存在了http的buffer对象里面,这里最好返回read的字数,鲁棒性
+    // cur_client->printBuffer();
+    // std::cout<<"lines:======================="<<std::endl;
+    // for(int i = 0;i<15;i++){
+    //     std::cout<<cur_client->getBuffer().nextLine()<<std::endl;
     // }
-    client->printBuffer();
+    
+    //开始状态机的处理
+    onProcess(cur_client);
     return;
+}
+
+void Webserver::onProcess(HttpConnection *cur_client)
+{
+    if(cur_client->handleHttpConnection()){
+        //正常解析了请求报文,就注册写事物,准备把网页发给client
+        epoll_->modFd(cur_client->getFd(),connect_event|EPOLLOUT);
+    }else{
+        //没有解析成功,那么等client重传一份请求
+        epoll_->modFd(cur_client->getFd(),connect_event|EPOLLIN);
+    }
 }
 
 void Webserver::mainFrame(){

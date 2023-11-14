@@ -33,6 +33,18 @@ bool MyEpoll::delFd(int fd)
     return epoll_ctl(epoll_fd,EPOLL_CTL_DEL,fd,nullptr);
 }
 
+bool MyEpoll::modFd(int fd, uint32_t event)
+{
+    if(fd<0){
+        std::cerr<<"fd<0 when epoll modify"<<std::endl;
+        return false;
+    }
+    epoll_event ev = {0};
+    ev.data.fd = fd;
+    ev.events = event;
+    return epoll_ctl(epoll_fd,EPOLL_CTL_MOD,fd,&ev)==0;
+}
+
 u_int32_t MyEpoll::getEvent(int i)
 {
     assert(i>=0&&i<epoll_events.size());
